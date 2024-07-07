@@ -1,68 +1,101 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <iostream>
-#include <string.h>
+#include <string>
+#include "lib/Render.h"
 
 const int MAX_TEXT_LENGTH = 256;
-const int WIDTH = 1200;
-const int HEIGHT = 900;
+const int WIDTH = 800;
+const int HEIGHT = 600;
+const int LINE_HEIGHT = 24;
 
-SDL_Texture* renderText(const std::string& text, SDL_Renderer* renderer, SDL_Color textColor, TTF_Font* font) {
-    SDL_Surface* textSurface = TTF_RenderText_Blended(font, text.c_str(), textColor);
-    if (textSurface == nullptr) {
-        std::cerr << "TTF_RenderText_Blended Error: " << TTF_GetError() << std::endl;
-        return nullptr;
-    }
+SDL_Window* window = nullptr;
+Render render;
+SDL_Renderer* Renderer = render.renderer;
+TTF_Font* Font = render.font;
 
-    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-    SDL_FreeSurface(textSurface);
-    return textTexture;
-}
+std::string textToRender = " ";
+int cursorX = 0;
+int cursorY = 0;
+int scrollOffset = 0;
+bool showCursor = true;  // Cursor visibility for blinking
+Uint32 lastBlinkTime = 0;
 
-int main(int argc, char* argv[]) {
+bool Init() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
-        return 1;
+        return false;
     }
 
-    SDL_Window* window = SDL_CreateWindow("SDL Example", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("SDL Example", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
     if (window == nullptr) {
         std::cerr << "Window creation failed: " << SDL_GetError() << std::endl;
         SDL_Quit();
-        return 1;
+        return false;
     }
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE );
-    if (renderer == nullptr) {
+    Renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+    if (Renderer == nullptr) {
         std::cerr << "Renderer creation failed: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return 1;
+        return false;
     }
 
     // Initialize SDL_ttf
     if (TTF_Init() == -1) {
         std::cerr << "SDL_ttf initialization failed: " << TTF_GetError() << std::endl;
-        SDL_DestroyRenderer(renderer);
+        SDL_DestroyRenderer(Renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return 1;
+        return false;
     }
 
     // Load font
-    TTF_Font* font = TTF_OpenFont("fonts/BRLNSB.TTF", 24);
-    if (font == nullptr) {
+    Font = TTF_OpenFont("fonts/BRLNSB.TTF", 24);
+    if (Font == nullptr) {
         std::cerr << "TTF_OpenFont Error: " << TTF_GetError() << std::endl;
         TTF_Quit();
-        SDL_DestroyRenderer(renderer);
+        SDL_DestroyRenderer(Renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return 1;
+        return false;
+    }
+
+    return true;
+}
+
+void close() {
+    SDL_StopTextInput();
+    TTF_CloseFont(Font);
+    SDL_DestroyRenderer(Renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
+    SDL_Quit();
+}
+
+void handleEvent(SDL_Event& event) {
+    switch (event.type) {
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_BACKSPACE && !textToRender.empty()) {
+                textToRender.pop_back();
+            }
+            break;
+        case SDL_TEXTINPUT:
+            textToRender += event.text.text; // Append the new text
+            break;
+        default:
+            break;
+    }
+}
+
+int main(int argc, char* argv[]) {
+    if (!Init()) {
+        return -1;
     }
 
     SDL_Color textColor = {255, 255, 255, 255}; // White color
 
-    std::string textToRender = " ";
     bool running = true;
     SDL_Event event;
     SDL_StartTextInput();
@@ -70,48 +103,17 @@ int main(int argc, char* argv[]) {
     // Main loop
     while (running) {
         while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-                case SDL_QUIT:
-                    running = false;
-                    break;
-                case SDL_KEYDOWN:
-                    if (event.key.keysym.sym == SDLK_BACKSPACE && textToRender.size() > 1) {
-                        if (!textToRender.empty()) { 
-                            textToRender.pop_back();
-                        } 
-                    }
-                    break;
-                case SDL_TEXTINPUT:
-                    textToRender += event.text.text; // Append the new text
-                    break;
-                default:
-                    break;
+            if (event.type == SDL_QUIT) {
+                running = false;
+            } else {
+                handleEvent(event);
             }
         }
 
-        // Clear the screen
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        // Render the text
-        SDL_Color textColor = {255, 255, 255, 255}; // White color
-        SDL_Surface *textSurface = TTF_RenderText_Solid(font, textToRender.c_str(), textColor);
-        SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-        SDL_Rect textRect = {50, 50, textSurface->w, textSurface->h};
-        SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
-
-        SDL_FreeSurface(textSurface);
-        SDL_DestroyTexture(textTexture);
-
-        SDL_RenderPresent(renderer);
+        render.render(textToRender, cursorX, cursorY, showCursor);
     }
 
-    SDL_StopTextInput();
-    TTF_CloseFont(font);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    TTF_Quit();
-    SDL_Quit();
+    close();
 
     return 0;
 }
