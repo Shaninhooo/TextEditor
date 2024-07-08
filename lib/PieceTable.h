@@ -1,15 +1,31 @@
 #ifndef PIECETABLE_H
 #define PIECETABLE_H
-#include <string.h>
+#include <string>
 #include <vector>
+#include <iostream>
 
 class PieceTable {
     private:
-        std::vector<std::string> Which;
-        std::vector<int> startIndex;
-        std::vector<int> Length;
+        std::string originalBuffer = "asdasdasd";
+        std::string addBuffer = " ";
+ 
+        struct Piece {
+            std::string bufferType;
+            int startIndex;
+            int Length;
+
+            Piece(std::string bufferType, int startIndex, int length)
+                : bufferType(bufferType), startIndex(startIndex), Length(length) {}
+        };
+
+        std::vector<Piece> Pieces;
     public:
-        void addRow(std::string Which, int startIndex, int Length);
+        PieceTable();
+        void addRow(std::string bufferType, int startIndex, int Length);
+        void appendText(const std::string& text);
+        void deleteText();
+        std::string getOriginalBuffer(); 
+        std::string getSequence();
 };
 
-#endif
+#endif // PIECETABLE_H

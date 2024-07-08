@@ -11,10 +11,6 @@ void Text::deleteText() {
     pieceTable.
 }
 
-std::string getSequence() {
-    return this.Sequence;
-}
-
 std::string getOriginalBuffer() {
     return this.originalBuffer;
 }

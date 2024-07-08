@@ -2,6 +2,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <iostream>
 #include <string>
+#include "lib/PieceTable.h"
 
 const int MAX_TEXT_LENGTH = 256;
 const int WIDTH = 800;
@@ -12,7 +13,9 @@ SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 TTF_Font* font = nullptr;
 
-std::string textToRender = " ";
+PieceTable piecetable;
+
+std::string textToRender = piecetable.getSequence();
 int cursorX = 0;
 int cursorY = 0;
 int scrollOffset = 0;
@@ -80,7 +83,8 @@ void handleEvent(SDL_Event& event) {
             }
             break;
         case SDL_TEXTINPUT:
-            textToRender += event.text.text; // Append the new text
+            piecetable.appendText(event.text.text); // Append the new text
+            textToRender = piecetable.getSequence();
             break;
         default:
             break;
@@ -119,18 +123,18 @@ void render() {
     }
 
     // Calculate cursor position in pixels
-    int cursorPosX = 0;
-    if (cursorX > 0) {
-        std::string substring = textToRender.substr(0, cursorX);
-        SDL_Surface* surface = TTF_RenderText_Solid(font, substring.c_str(), {255, 255, 255, 255});
-        cursorPosX = surface->w;
-        SDL_FreeSurface(surface);
-    }
-    int cursorPosY = cursorY * LINE_HEIGHT;
+    // int cursorPosX = 0;
+    // if (cursorX > 0) {
+    //     std::string substring = textToRender.substr(0, cursorX);
+    //     SDL_Surface* surface = TTF_RenderText_Solid(font, substring.c_str(), {255, 255, 255, 255});
+    //     cursorPosX = surface->w;
+    //     SDL_FreeSurface(surface);
+    // }
+    // int cursorPosY = cursorY * LINE_HEIGHT;
 
-    if (showCursor) {
-        renderCursor(cursorPosX, cursorPosY);
-    }
+    // if (showCursor) {
+    //     renderCursor(cursorPosX, cursorPosY);
+    // }
 
     SDL_RenderPresent(renderer);
 }
