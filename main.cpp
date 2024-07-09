@@ -15,8 +15,8 @@ TTF_Font* font = nullptr;
 
 PieceTable piecetable;
 
-std::string textToRender = piecetable.getSequence();
-int cursorX = 0;
+std::vector<std::string> textToRender = piecetable.getLines();
+int cursorX = textToRender[0].size();
 int cursorY = 0;
 int scrollOffset = 0;
 bool showCursor = true;  // Cursor visibility for blinking
@@ -75,22 +75,6 @@ void close() {
     SDL_Quit();
 }
 
-void handleEvent(SDL_Event& event) {
-    switch (event.type) {
-        case SDL_KEYDOWN:
-            if (event.key.keysym.sym == SDLK_BACKSPACE && !textToRender.empty()) {
-                textToRender.pop_back();
-            }
-            break;
-        case SDL_TEXTINPUT:
-            piecetable.appendText(event.text.text); // Append the new text
-            textToRender = piecetable.getSequence();
-            break;
-        default:
-            break;
-    }
-}
-
 void renderText(const std::string& text, int x, int y) {
     SDL_Color color = {255, 255, 255, 255};
     SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), color);
@@ -115,28 +99,69 @@ void render() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < textToRender.size(); ++i) {
         int y = i * LINE_HEIGHT;
         if (y >= 0 && y < HEIGHT) {
-            renderText(textToRender, 0, y);
+            renderText(textToRender[i], 0, y);
         }
     }
 
     // Calculate cursor position in pixels
-    // int cursorPosX = 0;
-    // if (cursorX > 0) {
-    //     std::string substring = textToRender.substr(0, cursorX);
-    //     SDL_Surface* surface = TTF_RenderText_Solid(font, substring.c_str(), {255, 255, 255, 255});
-    //     cursorPosX = surface->w;
-    //     SDL_FreeSurface(surface);
-    // }
-    // int cursorPosY = cursorY * LINE_HEIGHT;
+    int cursorPosX = 0;
+    if (cursorX > 0) {
+        std::string substring = textToRender[cursorY].substr(0, cursorX);
+        SDL_Surface* surface = TTF_RenderText_Solid(font, substring.c_str(), {255, 255, 255, 255});
+        cursorPosX = surface->w;
+        SDL_FreeSurface(surface);
+    }
+    int cursorPosY = cursorY * LINE_HEIGHT;
 
-    // if (showCursor) {
-    //     renderCursor(cursorPosX, cursorPosY);
-    // }
+    if (showCursor) {
+        renderCursor(cursorPosX, cursorPosY);
+    }
 
     SDL_RenderPresent(renderer);
+}
+
+void handleEvent(SDL_Event& event) {
+    switch (event.type) {
+        case SDL_KEYDOWN:
+            switch (event.key.keysym.sym) {
+                case SDLK_BACKSPACE:
+                    if (!textToRender.empty()) {
+                        textToRender[0].pop_back();
+                    }
+                    break;
+                case SDLK_UP:
+                    if(cursorY > 0) {
+                        cursorY--;
+                    }
+                    break;
+                case SDLK_DOWN:
+                    cursorY++;
+                    break;
+                case SDLK_LEFT:
+                    if(cursorX > 0) {
+                        cursorX--;
+                    }
+                    break;
+                case SDLK_RIGHT:
+                    cursorX++;
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case SDL_TEXTINPUT:
+            piecetable.appendText(event.text.text, cursorX, cursorY); // Append the new text
+            textToRender = piecetable.getLines();
+            for(auto line:textToRender) {
+                std::cout << line << " " <<event.text.text << std::endl;
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 int main(int argc, char* argv[]) {

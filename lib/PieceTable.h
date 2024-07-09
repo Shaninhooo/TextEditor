@@ -3,29 +3,43 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <stack>
+#include <sstream>
+
+struct Piece {
+    std::string bufferType;
+    int startIndex;
+    int Length;
+    int lineNum;
+
+    Piece(std::string bufferType, int startIndex, int length, int lineNum)
+        : bufferType(bufferType), startIndex(startIndex), Length(length), lineNum(lineNum) {}
+};
+
+enum ActionType { INSERT, DELETE };
+
+struct Action {
+    ActionType type;
+    int pieceIndex;
+    int length;
+    std::string bufferType;
+    int bufferStartIndex;
+};
 
 class PieceTable {
     private:
-        std::string originalBuffer = "asdasdasd";
-        std::string addBuffer = " ";
- 
-        struct Piece {
-            std::string bufferType;
-            int startIndex;
-            int Length;
-
-            Piece(std::string bufferType, int startIndex, int length)
-                : bufferType(bufferType), startIndex(startIndex), Length(length) {}
-        };
-
+        std::string originalBuffer = "Welcome To Text Editor";
+        std::string addBuffer = "";
         std::vector<Piece> Pieces;
+        std::stack<Action> undoStack;
+        std::stack<Action> redoStack;
     public:
         PieceTable();
-        void addRow(std::string bufferType, int startIndex, int Length);
-        void appendText(const std::string& text);
+        void addRow(std::string bufferType, int startIndex, int Length, int lineNum);
+        void appendText(const std::string& text, int X, int Y);
         void deleteText();
-        std::string getOriginalBuffer(); 
         std::string getSequence();
+        std::vector<std::string> getLines();
 };
 
 #endif // PIECETABLE_H
