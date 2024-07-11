@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stack>
 #include <sstream>
+#include <map>
 
 struct Piece {
     std::string bufferType;
@@ -36,10 +37,11 @@ class PieceTable {
     public:
         PieceTable();
         void addRow(std::string bufferType, int startIndex, int Length, int lineNum);
+        void addRowAtIndex(std::string bufferType, int startIndex, int Length, int lineNum, int index);
         void appendText(const std::string& text, int X, int Y);
         void deleteText();
         std::string getSequence();
-        std::vector<std::string> getLines();
+        std::map<int, std::string> getLines();
 };
 
 #endif // PIECETABLE_H

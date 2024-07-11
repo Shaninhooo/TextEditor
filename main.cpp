@@ -15,7 +15,7 @@ TTF_Font* font = nullptr;
 
 PieceTable piecetable;
 
-std::vector<std::string> textToRender = piecetable.getLines();
+std::map<int, std::string> textToRender = piecetable.getLines();
 int cursorX = textToRender[0].size();
 int cursorY = 0;
 int scrollOffset = 0;
@@ -135,10 +135,16 @@ void handleEvent(SDL_Event& event) {
                 case SDLK_UP:
                     if(cursorY > 0) {
                         cursorY--;
+                        if(textToRender.size() > cursorY) {
+                            cursorX = textToRender[cursorY].size();
+                        } else {
+                            cursorX = 0;
+                        }
                     }
                     break;
                 case SDLK_DOWN:
                     cursorY++;
+                    cursorX = 0;
                     break;
                 case SDLK_LEFT:
                     if(cursorX > 0) {
@@ -146,7 +152,12 @@ void handleEvent(SDL_Event& event) {
                     }
                     break;
                 case SDLK_RIGHT:
-                    cursorX++;
+                    if(textToRender.size() > cursorY) {
+                            if(textToRender[cursorY].size() > cursorX) {
+                                cursorX++;
+                            }
+                        }
+                    
                     break;
                 default:
                     break;
@@ -155,9 +166,7 @@ void handleEvent(SDL_Event& event) {
         case SDL_TEXTINPUT:
             piecetable.appendText(event.text.text, cursorX, cursorY); // Append the new text
             textToRender = piecetable.getLines();
-            for(auto line:textToRender) {
-                std::cout << line << " " <<event.text.text << std::endl;
-            }
+            cursorX++;
             break;
         default:
             break;
