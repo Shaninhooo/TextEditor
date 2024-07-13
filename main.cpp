@@ -129,7 +129,9 @@ void handleEvent(SDL_Event& event) {
             switch (event.key.keysym.sym) {
                 case SDLK_BACKSPACE:
                     if (!textToRender.empty()) {
-                        textToRender[0].pop_back();
+                        piecetable.deleteText(cursorX, cursorY);
+                        textToRender = piecetable.getLines();
+                        cursorX--;
                     }
                     break;
                 case SDLK_UP:
@@ -158,6 +160,12 @@ void handleEvent(SDL_Event& event) {
                             }
                         }
                     
+                    break;
+                case SDLK_z:
+                    if(SDL_GetModState() & KMOD_CTRL) {
+                        std::cout << "Undo Called" << std::endl;
+                        piecetable.Undo();
+                    }
                     break;
                 default:
                     break;

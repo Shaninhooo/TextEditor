@@ -6,6 +6,7 @@
 #include <stack>
 #include <sstream>
 #include <map>
+#include "RateLimiter.h"
 
 struct Piece {
     std::string bufferType;
@@ -25,6 +26,8 @@ struct Action {
     int length;
     std::string bufferType;
     int bufferStartIndex;
+     Action(ActionType t, int idx, int len, std::string bType, int bStart)
+        : type(t), pieceIndex(idx), length(len), bufferType(bType), bufferStartIndex(bStart) {}
 };
 
 class PieceTable {
@@ -34,14 +37,17 @@ class PieceTable {
         std::vector<Piece> Pieces;
         std::stack<Action> undoStack;
         std::stack<Action> redoStack;
+        RateLimiter rateLimiterDelete{1000}; // 1 second timeout for delete
+        RateLimiter rateLimiterUndo{1000}; // 1 second timeout for undo
     public:
         PieceTable();
         void addRow(std::string bufferType, int startIndex, int Length, int lineNum);
         void addRowAtIndex(std::string bufferType, int startIndex, int Length, int lineNum, int index);
         void appendText(const std::string& text, int X, int Y);
-        void deleteText();
+        void deleteText(int X, int Y);
         std::string getSequence();
         std::map<int, std::string> getLines();
+        void Undo();
 };
 
 #endif // PIECETABLE_H

@@ -1,5 +1,5 @@
 all:
-	g++ main.cpp src/PieceTable.cpp -o main `sdl2-config --cflags --libs` -lSDL2_ttf
+	g++ main.cpp src/PieceTable.cpp src/RateLimiter.cpp -o main `sdl2-config --cflags --libs` -lSDL2_ttf
 
 
 test: 

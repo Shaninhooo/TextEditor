@@ -50,6 +50,9 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
                         while(totalLength != currentIndex + X) {
                             totalLength += Pieces[pieceIndex].Length;
                             pieceIndex++;
+                            if (totalLength > currentIndex + X) {
+                                break;
+                            }
                         }
                         Pieces.insert(Pieces.begin() + pieceIndex, newTextPiece);
 
@@ -120,10 +123,43 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
     // std::cout << std::endl;
 }
 
-void PieceTable::deleteText() {
-    // addBuffer.push_back();
-    // pieceTable.
-};
+void PieceTable::deleteText(int X, int Y) {
+     if (!rateLimiterDelete.canCall()) {
+        std::cerr << "deleteText call blocked due to rate limiting." << std::endl;
+        return;
+    }
+    int pieceIndex = 0;
+    bool deletionStarted = false;
+    int totalLength = 0;
+
+    for (auto it = Pieces.begin(); it != Pieces.end(); it++) {
+        if (it->lineNum == Y) {
+            totalLength += it->Length - it->startIndex;
+            if (totalLength >= X) {
+                std::cout << totalLength << " " << X << std::endl;
+
+
+                // Handle partial deletion within a piece
+                it->Length -= 1;
+                if(it->Length == 0) {
+                    Pieces.erase(it);
+                }
+
+                for(auto piece:Pieces){
+                    std::cout << piece.bufferType << " " << piece.startIndex << " " << piece.Length << " " << piece.lineNum << " " << std::endl;
+                }
+
+                // undoStack.push(Action(DELETE, pieceIndex, lengthToRemove, it->bufferType, it->startIndex + it->Length));
+                deletionStarted = true;
+                break;
+            } 
+        }
+    }
+
+    if (!deletionStarted) {
+        std::cerr << "Error: Deletion point exceeds the length of the line." << std::endl;
+    }
+}
 
 // std::string PieceTable::getSequence() {
 //     std::string sequence;
@@ -149,8 +185,17 @@ std::map<int, std::string> PieceTable::getLines() {
     return lines;
 }
 
-// PieceTable::~PieceTable() {
-//     for(auto Piece:Pieces) {
-//         delete Piece;
-//     }
-// }
+void PieceTable::Undo() {
+    if (undoStack.empty()) {
+        std::cerr << "No actions to undo." << std::endl;
+        return;
+    }
+    Action lastAction = undoStack.top();
+    undoStack.pop();
+
+    if (lastAction.type == INSERT) {
+        Pieces.erase(Pieces.begin() + lastAction.pieceIndex);
+    } else if (lastAction.type == DELETE) {
+        Pieces.insert(Pieces.begin() + lastAction.pieceIndex, Piece(lastAction.bufferType, lastAction.bufferStartIndex, lastAction.length, 0)); // Adjust lineNum as needed
+    }
+}
