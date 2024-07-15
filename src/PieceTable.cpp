@@ -117,10 +117,10 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
         addRow("add", startIndex, text.size(), Y);
     }
 
-    // for(auto piece:Pieces){
-    //     std::cout << piece.bufferType << " " << piece.startIndex << " " << piece.Length << " " << piece.lineNum << " " << std::endl;
-    // }
-    // std::cout << std::endl;
+    for(auto piece:Pieces){
+        std::cout << piece.bufferType << " " << piece.startIndex << " " << piece.Length << " " << piece.lineNum << " " << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 void PieceTable::deleteText(int X, int Y) {
@@ -131,22 +131,55 @@ void PieceTable::deleteText(int X, int Y) {
     int pieceIndex = 0;
     bool deletionStarted = false;
     int totalLength = 0;
+    int lineTextTotal = 0;
+
+    for(auto piece:Pieces) {
+        if(piece.lineNum == Y) {
+            lineTextTotal += piece.Length;
+        }
+    }
 
     for (auto it = Pieces.begin(); it != Pieces.end(); it++) {
         if (it->lineNum == Y) {
-            totalLength += it->Length - it->startIndex;
-            if (totalLength >= X) {
-                std::cout << totalLength << " " << X << std::endl;
+        
+            totalLength += it->Length;
+            if (lineTextTotal > X && totalLength >= X) {
+                int currentIndex = std::distance(Pieces.begin(), it);
+                if(it->bufferType == "original") {
+                    Piece newPiece1("original", it->startIndex, X - 1, it->lineNum);
+                    Piece newPiece2("original", it->startIndex + X, it->Length - X, it->lineNum);
+    
+                    // Erase the original "add" piece
+                    it = Pieces.erase(it);
 
+                    // Insert new pieces in correct positions
+                    it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
+                    it = Pieces.insert(Pieces.begin() + currentIndex + 1, newPiece2);
+                } else if (it->bufferType == "add") {
+                    if(it->Length > 1) {
+                        Piece newPiece1("add", it->startIndex, X - 1, it->lineNum);
+                        Piece newPiece2("add", it->startIndex + X, it->Length - X, it->lineNum);
+        
+                        // Erase the original "add" piece
+                        it = Pieces.erase(it);
+
+                        // Insert new pieces in correct positions
+                        it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
+                        it = Pieces.insert(Pieces.begin() + currentIndex + 1, newPiece2);
+                    } else {
+                        it = Pieces.erase(it);
+                    }
+                }
+
+                deletionStarted = true;
+                break;
+            } else if (totalLength >= X) {
+                std::cout << totalLength << " " << X << std::endl;
 
                 // Handle partial deletion within a piece
                 it->Length -= 1;
                 if(it->Length == 0) {
                     Pieces.erase(it);
-                }
-
-                for(auto piece:Pieces){
-                    std::cout << piece.bufferType << " " << piece.startIndex << " " << piece.Length << " " << piece.lineNum << " " << std::endl;
                 }
 
                 // undoStack.push(Action(DELETE, pieceIndex, lengthToRemove, it->bufferType, it->startIndex + it->Length));
@@ -157,7 +190,8 @@ void PieceTable::deleteText(int X, int Y) {
     }
 
     if (!deletionStarted) {
-        std::cerr << "Error: Deletion point exceeds the length of the line." << std::endl;
+        std::cerr << "Error: Deletion Canceled." << std::endl;
+        std::cout << totalLength << " " << X << std::endl;
     }
 }
 

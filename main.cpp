@@ -128,7 +128,7 @@ void handleEvent(SDL_Event& event) {
         case SDL_KEYDOWN:
             switch (event.key.keysym.sym) {
                 case SDLK_BACKSPACE:
-                    if (!textToRender.empty()) {
+                    if (textToRender[cursorY].size() > 0) {
                         piecetable.deleteText(cursorX, cursorY);
                         textToRender = piecetable.getLines();
                         cursorX--;
