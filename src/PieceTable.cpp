@@ -128,7 +128,6 @@ void PieceTable::deleteText(int X, int Y) {
         std::cerr << "deleteText call blocked due to rate limiting." << std::endl;
         return;
     }
-    int pieceIndex = 0;
     bool deletionStarted = false;
     int totalLength = 0;
     int lineTextTotal = 0;
@@ -170,19 +169,21 @@ void PieceTable::deleteText(int X, int Y) {
                         it = Pieces.erase(it);
                     }
                 }
+                undoStack.push(Action(DELETE, currentIndex+1, 1, it->bufferType, X-1));
 
                 deletionStarted = true;
                 break;
             } else if (totalLength >= X) {
-                std::cout << totalLength << " " << X << std::endl;
 
                 // Handle partial deletion within a piece
                 it->Length -= 1;
                 if(it->Length == 0) {
                     Pieces.erase(it);
                 }
+                int pieceIndex = Pieces.size();
+                std::cout << pieceIndex << std::endl;
+                undoStack.push(Action(DELETE, pieceIndex, 1, it->bufferType, it->startIndex + it->Length));
 
-                // undoStack.push(Action(DELETE, pieceIndex, lengthToRemove, it->bufferType, it->startIndex + it->Length));
                 deletionStarted = true;
                 break;
             } 
@@ -194,18 +195,6 @@ void PieceTable::deleteText(int X, int Y) {
         std::cout << totalLength << " " << X << std::endl;
     }
 }
-
-// std::string PieceTable::getSequence() {
-//     std::string sequence;
-//     for (auto piece : Pieces) {
-//         std::cout << piece.bufferType << piece.startIndex << piece.Length << piece.lineNum << std::endl;  
-//         if (piece.Length > 0 && sequence.back() != '\n') {
-//             sequence += '\n';
-//         }
-//     }
-//     std::cout << sequence << std::endl;
-//     return sequence;
-// }
 
 std::map<int, std::string> PieceTable::getLines() {
     std::map<int, std::string> lines;
@@ -231,5 +220,23 @@ void PieceTable::Undo() {
         Pieces.erase(Pieces.begin() + lastAction.pieceIndex);
     } else if (lastAction.type == DELETE) {
         Pieces.insert(Pieces.begin() + lastAction.pieceIndex, Piece(lastAction.bufferType, lastAction.bufferStartIndex, lastAction.length, 0)); // Adjust lineNum as needed
+        // Adjust the pieceIndex of remaining actions in the undo stack
+        std::stack<Action> tempStack;
+        while (!undoStack.empty()) {
+            Action action = undoStack.top();
+            undoStack.pop();
+
+            if (action.pieceIndex >= lastAction.pieceIndex) {
+                action.pieceIndex++;
+            }
+
+            tempStack.push(action);
+        }
+
+        // Push adjusted actions back to the undo stack
+        while (!tempStack.empty()) {
+            undoStack.push(tempStack.top());
+            tempStack.pop();
+        }
     }
 }

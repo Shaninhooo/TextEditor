@@ -16,6 +16,7 @@ TTF_Font* font = nullptr;
 PieceTable piecetable;
 
 std::map<int, std::string> textToRender = piecetable.getLines();
+
 int cursorX = textToRender[0].size();
 int cursorY = 0;
 int scrollOffset = 0;
@@ -99,10 +100,10 @@ void render() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    for (int i = 0; i < textToRender.size(); ++i) {
-        int y = i * LINE_HEIGHT;
+    for (auto line:textToRender) {
+        int y = line.first * LINE_HEIGHT;
         if (y >= 0 && y < HEIGHT) {
-            renderText(textToRender[i], 0, y);
+            renderText(line.second, 0, y);
         }
     }
 
@@ -128,12 +129,21 @@ void handleEvent(SDL_Event& event) {
         case SDL_KEYDOWN:
             switch (event.key.keysym.sym) {
                 case SDLK_BACKSPACE:
-                    if (textToRender[cursorY].size() > 0) {
+                {
+                    // Find the max element in the map by getting the last key
+                    int maxElement = textToRender.rbegin()->first;
+                    if(textToRender.size()-1 < cursorY && cursorY > 0 && cursorX == 0) {
+                        std::cout << "Moving Up Line" << std::endl;
+                        cursorX = textToRender[textToRender.size()-1].size();
+                        cursorY = textToRender.size()-1;
+                    
+                    } else if (cursorY <= maxElement && cursorX > 0) {
                         piecetable.deleteText(cursorX, cursorY);
                         textToRender = piecetable.getLines();
                         cursorX--;
                     }
                     break;
+                }
                 case SDLK_UP:
                     if(cursorY > 0) {
                         cursorY--;
@@ -163,8 +173,9 @@ void handleEvent(SDL_Event& event) {
                     break;
                 case SDLK_z:
                     if(SDL_GetModState() & KMOD_CTRL) {
-                        std::cout << "Undo Called" << std::endl;
                         piecetable.Undo();
+                        textToRender = piecetable.getLines();
+                        cursorX++;
                     }
                     break;
                 default:
