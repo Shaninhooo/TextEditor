@@ -47,6 +47,8 @@ class PieceTable {
         std::string getSequence();
         std::map<int, std::string> getLines();
         void Undo();
+        void pushUndo(ActionType t, int idx, int len, std::string bType, int bStart);
+        void combinePiece(int lastPiece, int currentPiece);
 };
 
 #endif // PIECETABLE_H

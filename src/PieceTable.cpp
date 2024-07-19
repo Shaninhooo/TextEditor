@@ -21,6 +21,8 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
     addBuffer += text;
     bool inserted = false;
     int lineTextTotal = 0;
+    int pieceIndex = 0;
+    int lastPieceIndex = -1;
     for(auto piece:Pieces) {
         if(piece.lineNum == Y) {
             lineTextTotal += piece.Length;
@@ -31,13 +33,17 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
     int currentLine = 0;
 
     for (auto it = Pieces.begin(); it != Pieces.end(); ++it) {
+        
         if (it->lineNum == Y) {
+
             if (it->bufferType == "add" && X == lineTextTotal) {
                 it->Length += text.size();
                 inserted = true;
                 break;
             
             } else if (X < lineTextTotal) {
+
+
                 if(it->bufferType == "original") {
                     int currentIndex = std::distance(Pieces.begin(), it);
 
@@ -117,6 +123,12 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
         addRow("add", startIndex, text.size(), Y);
     }
 
+    for(int i = 0; i < Pieces.size(); i++) {
+        if(Pieces[i-1].Length + Pieces[i-1].startIndex == Pieces[i].startIndex && Pieces[i-1].bufferType == Pieces[i].bufferType) {
+            combinePiece(i-1, i);
+        }
+    }
+
     for(auto piece:Pieces){
         std::cout << piece.bufferType << " " << piece.startIndex << " " << piece.Length << " " << piece.lineNum << " " << std::endl;
     }
@@ -131,64 +143,101 @@ void PieceTable::deleteText(int X, int Y) {
     bool deletionStarted = false;
     int totalLength = 0;
     int lineTextTotal = 0;
+    int pieceIndex = 0;
 
+    // Check the total length of line Y
     for(auto piece:Pieces) {
         if(piece.lineNum == Y) {
             lineTextTotal += piece.Length;
         }
     }
 
+
     for (auto it = Pieces.begin(); it != Pieces.end(); it++) {
         if (it->lineNum == Y) {
-        
             totalLength += it->Length;
-            if (lineTextTotal > X && totalLength >= X) {
-                int currentIndex = std::distance(Pieces.begin(), it);
-                if(it->bufferType == "original") {
-                    Piece newPiece1("original", it->startIndex, X - 1, it->lineNum);
-                    Piece newPiece2("original", it->startIndex + X, it->Length - X, it->lineNum);
-    
-                    // Erase the original "add" piece
-                    it = Pieces.erase(it);
+            int pieceStart = totalLength - it->Length;
 
-                    // Insert new pieces in correct positions
-                    it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
-                    it = Pieces.insert(Pieces.begin() + currentIndex + 1, newPiece2);
-                } else if (it->bufferType == "add") {
+            if (lineTextTotal >= X && totalLength >= X) {
+                int currentIndex = std::distance(Pieces.begin(), it);
+
+                // Calculate the correct position within the piece
+                int pieceX = X - pieceStart;
+                std::cout << pieceX << std::endl;
+                
+                if(pieceX == 1) {
+                    it->startIndex++;
+                    pushUndo(DELETE, pieceIndex, 1, it->bufferType, pieceX-1);
+
+                    deletionStarted = true;
+                    break;
+                } else if (pieceX == it->Length) {
+
+                    // Handle partial deletion within a piece
+                    it->Length -= 1;
+                    if(it->Length == 0) {
+                        Pieces.erase(it);
+                    }
+
+                    std::cout << pieceIndex << std::endl;
+                    pushUndo(DELETE, pieceIndex, 1, it->bufferType, pieceX-1);
+
+                    deletionStarted = true;
+                    break;
+                } 
+
+                if(it->bufferType == "original") {
                     if(it->Length > 1) {
-                        Piece newPiece1("add", it->startIndex, X - 1, it->lineNum);
-                        Piece newPiece2("add", it->startIndex + X, it->Length - X, it->lineNum);
-        
+                        Piece newPiece1("original", it->startIndex, pieceX - 1, it->lineNum);
+                        Piece newPiece2("original", it->startIndex + pieceX, it->Length - pieceX, it->lineNum);
+
                         // Erase the original "add" piece
                         it = Pieces.erase(it);
 
-                        // Insert new pieces in correct positions
-                        it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
-                        it = Pieces.insert(Pieces.begin() + currentIndex + 1, newPiece2);
+                        if (newPiece1.Length > 0) {
+                            it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
+                            ++it;
+                        }
+                        if (newPiece2.Length > 0) {
+                            it = Pieces.insert(Pieces.begin() + currentIndex + 1, newPiece2);
+                        }
                     } else {
+                        Pieces.erase(it);
+                    }
+                    
+
+                } else if (it->bufferType == "add") {
+                    if(it->Length > 1) {
+                        Piece newPiece1("add", it->startIndex, pieceX - 1, it->lineNum);
+                        Piece newPiece2("add", it->startIndex + pieceX, it->Length - pieceX, it->lineNum);
+
                         it = Pieces.erase(it);
+        
+                        if (newPiece1.Length > 0) {
+                            it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
+                            ++it;
+                        }
+                        if (newPiece2.Length > 0) {
+                            it = Pieces.insert(Pieces.begin() + currentIndex + 1, newPiece2);
+                        }
+                    } else {
+                        Pieces.erase(it);
                     }
                 }
-                undoStack.push(Action(DELETE, currentIndex+1, 1, it->bufferType, X-1));
-
-                deletionStarted = true;
-                break;
-            } else if (totalLength >= X) {
-
-                // Handle partial deletion within a piece
-                it->Length -= 1;
-                if(it->Length == 0) {
-                    Pieces.erase(it);
-                }
-                int pieceIndex = Pieces.size();
-                std::cout << pieceIndex << std::endl;
-                undoStack.push(Action(DELETE, pieceIndex, 1, it->bufferType, it->startIndex + it->Length));
+                
+                pushUndo(DELETE, currentIndex + 1, 1, it->bufferType, pieceX - 1);
+               
 
                 deletionStarted = true;
                 break;
             } 
         }
+        pieceIndex++;
     }
+    for(auto piece:Pieces){
+        std::cout << piece.bufferType << " " << piece.startIndex << " " << piece.Length << " " << piece.lineNum << " " << std::endl;
+    }
+    std::cout << std::endl;
 
     if (!deletionStarted) {
         std::cerr << "Error: Deletion Canceled." << std::endl;
@@ -199,6 +248,7 @@ void PieceTable::deleteText(int X, int Y) {
 std::map<int, std::string> PieceTable::getLines() {
     std::map<int, std::string> lines;
     for(auto piece:Pieces) {
+        
         if (piece.bufferType == "original") {
             lines[piece.lineNum] += originalBuffer.substr(piece.startIndex, piece.Length);
         } else {
@@ -220,23 +270,44 @@ void PieceTable::Undo() {
         Pieces.erase(Pieces.begin() + lastAction.pieceIndex);
     } else if (lastAction.type == DELETE) {
         Pieces.insert(Pieces.begin() + lastAction.pieceIndex, Piece(lastAction.bufferType, lastAction.bufferStartIndex, lastAction.length, 0)); // Adjust lineNum as needed
-        // Adjust the pieceIndex of remaining actions in the undo stack
-        std::stack<Action> tempStack;
-        while (!undoStack.empty()) {
-            Action action = undoStack.top();
-            undoStack.pop();
-
-            if (action.pieceIndex >= lastAction.pieceIndex) {
-                action.pieceIndex++;
-            }
-
-            tempStack.push(action);
-        }
-
-        // Push adjusted actions back to the undo stack
-        while (!tempStack.empty()) {
-            undoStack.push(tempStack.top());
-            tempStack.pop();
-        }
     }
+
+}
+
+void PieceTable::pushUndo(ActionType t, int idx, int len, std::string bType, int bStart) {
+     // Adjust the pieceIndex of remaining actions in the undo stack
+
+    std::stack<Action> tempStack;
+    while (!undoStack.empty()) {
+        Action action = undoStack.top();
+        undoStack.pop();
+
+        if (action.pieceIndex == idx) {
+            action.pieceIndex += 2;
+            std::cout << action.pieceIndex << std::endl;
+        }
+        tempStack.push(action);
+    }
+
+    // Push adjusted actions back to the undo stack
+    while (!tempStack.empty()) {
+        undoStack.push(tempStack.top());
+        tempStack.pop();
+    }
+    undoStack.push(Action(t, idx, len, bType, bStart));
+}
+void PieceTable::combinePiece(int lastPieceIndex, int currentPieceIndex) {
+    Piece lastPiece = Pieces[lastPieceIndex];
+    Piece currentPiece = Pieces[currentPieceIndex];
+
+    // Ensure lastPieceIndex is less than currentPieceIndex
+    if (lastPieceIndex > currentPieceIndex) {
+        std::swap(lastPieceIndex, currentPieceIndex);
+    }
+
+    Pieces.erase(Pieces.begin() + currentPieceIndex);
+    Pieces.erase(Pieces.begin() + lastPieceIndex);
+
+    Piece combinedPiece(lastPiece.bufferType, lastPiece.startIndex, lastPiece.Length + currentPiece.Length, lastPiece.lineNum);
+    Pieces.insert(Pieces.begin() + lastPieceIndex, combinedPiece);
 }
