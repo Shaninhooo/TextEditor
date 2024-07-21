@@ -22,12 +22,14 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
     bool inserted = false;
     int lineTextTotal = 0;
     int pieceIndex = 0;
-    int lastPieceIndex = -1;
+    int currentTotalText = 0;
+
     for(auto piece:Pieces) {
         if(piece.lineNum == Y) {
             lineTextTotal += piece.Length;
         }
     }
+
 
     // Iterate through pieces to find the correct line and position to insert text
     int currentLine = 0;
@@ -36,96 +38,63 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
         
         if (it->lineNum == Y) {
 
-            if (it->bufferType == "add" && X == lineTextTotal) {
-                it->Length += text.size();
-                inserted = true;
-                break;
-            
-            } else if (X < lineTextTotal) {
+            currentTotalText += it->Length;
+            int currentIndex = std::distance(Pieces.begin(), it);
 
+            if (X < lineTextTotal && currentTotalText >= X && it->Length > 1) {
+                int pieceX = X - (currentTotalText - it->Length);
 
-                if(it->bufferType == "original") {
-                    int currentIndex = std::distance(Pieces.begin(), it);
+                // Splitting the "add" piece into three parts
+                Piece newPiece1(it->bufferType, it->startIndex, pieceX, it->lineNum);
+                Piece newTextPiece("add", startIndex, text.size(), Y);
+                Piece newPiece2(it->bufferType, it->startIndex + pieceX, it->Length - pieceX, it->lineNum);
 
-                    if (X > it->Length) {
-                        Piece newTextPiece("add", startIndex, text.size(), Y);
-                        // Insert new pieces in correct positions
+                std::cout << it->Length - X << std::endl;
 
-                        int pieceIndex = 0;
-                        int totalLength = 0;
-                        while(totalLength != currentIndex + X) {
-                            totalLength += Pieces[pieceIndex].Length;
-                            pieceIndex++;
-                            if (totalLength > currentIndex + X) {
-                                break;
-                            }
-                        }
-                        Pieces.insert(Pieces.begin() + pieceIndex, newTextPiece);
-
-                        inserted = true;
-                        break;
-                    }
-
-                    // Splitting the "add" piece into three parts
-                    Piece newPiece1("original", it->startIndex, X, it->lineNum);
-                    Piece newTextPiece("add", startIndex, text.size(), Y);
-                    Piece newPiece2("original", it->startIndex + X, it->Length - X, it->lineNum);
-
-                    // Erase the original "add" piece
-                    it = Pieces.erase(it);
-
-                    // Insert new pieces in correct positions
-                    it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
-                    it = Pieces.insert(Pieces.begin() + currentIndex + 1, newTextPiece);
-                    Pieces.insert(Pieces.begin() + currentIndex + 2, newPiece2);
-
-                    inserted = true;
-                    break;
-                } else {
-
-                    int currentIndex = std::distance(Pieces.begin(), it);
-
-                    if (X > it->Length) {
-                        Piece newTextPiece("add", startIndex, text.size(), Y);
-                        // Insert new pieces in correct positions
-                        Pieces.insert(Pieces.begin() + currentIndex + X, newTextPiece);
-
-                        inserted = true;
-                        break;
-                    }
-
-                    // Splitting the "add" piece into three parts
-                    Piece newPiece1("add", it->startIndex, X, it->lineNum);
-                    Piece newTextPiece("add", startIndex, text.size(), Y);
-                    Piece newPiece2("add", it->startIndex + X, it->Length - X, it->lineNum);
-
-                    // Erase the original "add" piece
-                    it = Pieces.erase(it);
-
-                    // Insert new pieces in correct positions
-                    it = Pieces.insert(Pieces.begin() + currentIndex, newPiece1);
-                    it = Pieces.insert(Pieces.begin() + currentIndex + 1, newTextPiece);
-                    Pieces.insert(Pieces.begin() + currentIndex + 2, newPiece2);
-        
-
+                if(it->Length == 1) {
+                    Pieces.insert(Pieces.begin() + pieceIndex, newTextPiece);
+                    std::cout << pieceIndex << " " << currentIndex << std::endl;
                     inserted = true;
                     break;
                 }
+                
+                // Erase the original "add" piece
+                it = Pieces.erase(it);
+
+                // Insert new pieces in correct positions
+                if (newPiece1.Length > 0) {
+                    it = Pieces.insert(it, newPiece1);
+                    it++; // Adjust iterator
+                }
+                if (newTextPiece.Length > 0) {
+                    it = Pieces.insert(it, newTextPiece);
+                    it++; // Adjust iterator
+                }
+                if (newPiece2.Length > 0) {
+                    Pieces.insert(it, newPiece2);
+                }
+
+                inserted = true;
                 break;
             }
-
-
         }
+        pieceIndex++;
     }
 
     if (!inserted) {
         // Add new piece if it was not inserted in the loop
         addRow("add", startIndex, text.size(), Y);
+        std::cout << "Inserting at end" << std::endl;
     }
 
-    for(int i = 0; i < Pieces.size(); i++) {
-        if(Pieces[i-1].Length + Pieces[i-1].startIndex == Pieces[i].startIndex && Pieces[i-1].bufferType == Pieces[i].bufferType) {
-            combinePiece(i-1, i);
+    //Checks for sequences of text in buffer from pieces and combines if in sequence
+    for (size_t i = 1; i < Pieces.size();) {
+        if (Pieces[i - 1].startIndex + Pieces[i - 1].Length == Pieces[i].startIndex &&  Pieces[i - 1].bufferType == Pieces[i].bufferType) {
+            std::cout << Pieces[i - 1].startIndex + Pieces[i - 1].Length << " " << Pieces[i].startIndex << std::endl;
+            combinePiece(i - 1, i);
+            // After combining, 'i' points to the next element, no need to increment 'i'
+        } else {
+            i++; // Increment only if no merge happened
         }
     }
 
@@ -134,6 +103,9 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
     }
     std::cout << std::endl;
 }
+
+
+
 
 void PieceTable::deleteText(int X, int Y) {
      if (!rateLimiterDelete.canCall()) {
@@ -244,6 +216,10 @@ void PieceTable::deleteText(int X, int Y) {
         std::cout << totalLength << " " << X << std::endl;
     }
 }
+
+
+
+
 
 std::map<int, std::string> PieceTable::getLines() {
     std::map<int, std::string> lines;
