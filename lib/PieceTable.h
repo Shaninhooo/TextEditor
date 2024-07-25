@@ -49,6 +49,7 @@ class PieceTable {
         void Undo();
         void pushUndo(ActionType t, int idx, int len, std::string bType, int bStart);
         void combinePiece(int lastPiece, int currentPiece);
+        std::stack<Action> getUndoStack();
 };
 
 #endif // PIECETABLE_H

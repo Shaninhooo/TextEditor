@@ -9,6 +9,8 @@ const int WIDTH = 800;
 const int HEIGHT = 600;
 const int LINE_HEIGHT = 24;
 
+RateLimiter rateLimiterType{1000};
+
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 TTF_Font* font = nullptr;
@@ -173,9 +175,15 @@ void handleEvent(SDL_Event& event) {
                     break;
                 case SDLK_z:
                     if(SDL_GetModState() & KMOD_CTRL) {
-                        piecetable.Undo();
-                        textToRender = piecetable.getLines();
-                        cursorX++;
+                        if(!piecetable.getUndoStack().empty()) {
+                            piecetable.Undo();
+                            textToRender = piecetable.getLines();
+                            if(piecetable.getUndoStack().top().type == INSERT) {
+                                cursorX--;
+                            }  else {
+                                cursorX++;
+                            }
+                        }
                     }
                     break;
                 default:
@@ -183,6 +191,10 @@ void handleEvent(SDL_Event& event) {
             }
             break;
         case SDL_TEXTINPUT:
+            if (!rateLimiterType.canCall()) {
+                std::cerr << "deleteText call blocked due to rate limiting." << std::endl;
+                return;
+            }
             piecetable.appendText(event.text.text, cursorX, cursorY); // Append the new text
             textToRender = piecetable.getLines();
             cursorX++;
