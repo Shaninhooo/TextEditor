@@ -34,7 +34,6 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
         }
     }
 
-
     // Iterate through pieces to find the correct line and position to insert text
     int currentLine = 0;
 
@@ -45,39 +44,38 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
             currentTotalText += it->Length;
             int currentIndex = std::distance(Pieces.begin(), it);
 
-            if (X < lineTextTotal && currentTotalText >= X && it->Length > 1) {
+            if (X <= lineTextTotal && currentTotalText >= X) {
                 int pieceX = X - (currentTotalText - it->Length);
-                std::string bufferType = it->bufferType; // Store the bufferType before any modifications
 
                 // Splitting the "add" piece into three parts
                 Piece newPiece1(it->bufferType, it->startIndex, pieceX, it->lineNum);
                 Piece newTextPiece("add", startIndex, text.size(), Y);
                 Piece newPiece2(it->bufferType, it->startIndex + pieceX, it->Length - pieceX, it->lineNum);
 
-                if(it->Length == 1) {
-                    Pieces.insert(Pieces.begin() + pieceIndex, newTextPiece);
-                    inserted = true;
-                    break;
-                }
-                
-                // Erase the original "add" piece
-                it = Pieces.erase(it);
+                std::cout << pieceX << " " << it->Length << std::endl;
+                if(pieceX == it->Length) {
+                    std::cout << "Inserting Letter at end of piece" << std::endl;
+                    Pieces.insert(it + 1, newTextPiece);
+                } else {
+                    std::cout << "Inserting Letter inbetween of piece" << std::endl;
+                    // Erase the original "add" piece
+                    it = Pieces.erase(it);
 
-                // Insert new pieces in correct positions
-                if (newPiece1.Length > 0) {
-                    it = Pieces.insert(it, newPiece1);
-                    it++; // Adjust iterator
-                }
-                if (newTextPiece.Length > 0) {
-                    it = Pieces.insert(it, newTextPiece);
-                    it++; // Adjust iterator
-                }
-                if (newPiece2.Length > 0) {
-                    Pieces.insert(it, newPiece2);
-                }
+                    // Insert new pieces in correct positions
+                    if (newPiece1.Length > 0) {
+                        it = Pieces.insert(it, newPiece1);
+                        it++; // Adjust iterator
+                    }
+                    if (newTextPiece.Length > 0) {
+                        it = Pieces.insert(it, newTextPiece);
+                        it++; // Adjust iterator
+                    }
+                    if (newPiece2.Length > 0) {
+                        Pieces.insert(it, newPiece2);
+                    }
 
-                inserted = true;
-
+                }
+            
                 //Checks for sequences of text in buffer from pieces and combines if in sequence
                 for (size_t i = 1; i < Pieces.size();) {
                     if (Pieces[i - 1].startIndex + Pieces[i - 1].Length == Pieces[i].startIndex &&  Pieces[i - 1].bufferType == Pieces[i].bufferType) {
@@ -87,20 +85,19 @@ void PieceTable::appendText(const std::string& text, int X, int Y) {
                         i++; // Increment only if no merge happened
                     }
                 }
-                pushUndo(INSERT, currentIndex + 1, 1, bufferType, startIndex + pieceX - 1);
-
+                pushUndo(INSERT, currentIndex + 1, 1, "add", startIndex);
+                std::cout << addBuffer << " " << startIndex<< std::endl;
+                inserted = true;
                 break;
             }
         }
-        pieceIndex++;
     }
 
     if (!inserted) {
-        // Add new piece if it was not inserted in the loop
-        addRow("add", startIndex, text.size(), Y);
+        std::cerr << "Failed to insert the text at the specified position." << std::endl;
+    } else {
+        std::cout << "Piece Added" << std::endl;
     }
-
-    
 }
 
 
@@ -203,11 +200,13 @@ void PieceTable::pushUndo(ActionType t, int idx, int len, std::string bType, int
     while (!tempStack.empty()) {
         undoStack.push(tempStack.top());
         tempStack.pop();
+        std::cout << undoStack.top().bufferType << " " << undoStack.top().pieceIndex << " " << undoStack.top().length << " " << undoStack.top().bufferStartIndex << " " << addBuffer[undoStack.top().bufferStartIndex] << std::endl;
     }
     undoStack.push(Action(t, idx, len, bType, bStart));
+    std::cout << std::endl;
 }
 
-// Undo is placed at start of line not where it used to be...
+// Combining pieces cause undo to undo whole piece instead of a part of it...
 void PieceTable::Undo() {
     if (undoStack.empty()) {
         std::cerr << "No actions to undo." << std::endl;
@@ -222,21 +221,35 @@ void PieceTable::Undo() {
     }
 
     if (lastAction.type == INSERT) {
+        std::cout << "undoing INSERT" << std::endl;
         // Ensure the index is within bounds
-        if (lastAction.pieceIndex < Pieces.size()) {
-            std::cout << lastAction.bufferType << " " << lastAction.pieceIndex << " " << lastAction.length << " " << lastAction.bufferStartIndex << " " << originalBuffer[lastAction.bufferStartIndex] << std::endl;
-            auto it = Pieces.begin() + lastAction.pieceIndex;
-            Piece insertPiece = Pieces[lastAction.pieceIndex];
+        auto it = Pieces.begin() + lastAction.pieceIndex;
+        Piece insertPiece = Pieces[lastAction.pieceIndex];
+        if (lastAction.pieceIndex <= Pieces.size()) {
+            std::cout << lastAction.bufferStartIndex << " " << insertPiece.Length << std::endl;
 
-            if (lastAction.bufferStartIndex == 1) {
+            if (lastAction.bufferStartIndex == 0) {
+                std::cout << "Remove start of Piece" << std::endl;
                 insertPiece.startIndex++;
                 insertPiece.Length--;
+                if(insertPiece.Length == 0) {
+                    Pieces.erase(it);
+                } else {
+                    *it = insertPiece;
+                }   
             } else if (lastAction.bufferStartIndex == insertPiece.Length) {
+                std::cout << "Shorten Piece" << " " << insertPiece.Length << std::endl;
                 insertPiece.Length--;
-            } else if (insertPiece.Length > 1) {
+                if(insertPiece.Length == 0) {
+                    Pieces.erase(it);
+                } else {
+                    *it = insertPiece;
+                }
+            } else if (lastAction.bufferStartIndex < insertPiece.Length-1) {
+                std::cout << "Del Inbetween Letter" << std::endl;
                 int pieceX = lastAction.bufferStartIndex;
-                Piece newPiece1(insertPiece.bufferType, insertPiece.startIndex, pieceX - 1, insertPiece.lineNum);
-                Piece newPiece2(insertPiece.bufferType, insertPiece.startIndex + pieceX, insertPiece.Length - pieceX, insertPiece.lineNum);
+                Piece newPiece1(insertPiece.bufferType, insertPiece.startIndex, pieceX, insertPiece.lineNum);
+                Piece newPiece2(insertPiece.bufferType, insertPiece.startIndex + pieceX + 1, insertPiece.Length - pieceX - 1, insertPiece.lineNum);
 
                 // Erase the original "add" piece
                 it = Pieces.erase(it);
@@ -248,12 +261,8 @@ void PieceTable::Undo() {
                 if (newPiece2.Length > 0) {
                     it = Pieces.insert(it, newPiece2);
                 }
-            } else {
-                Pieces.erase(Pieces.begin() + lastAction.pieceIndex);
             }
         } else {
-            std::cout << lastAction.bufferType << " " << lastAction.pieceIndex << " " << lastAction.length << " " << lastAction.bufferStartIndex << " " << originalBuffer[lastAction.bufferStartIndex] << std::endl;
-            
             std::cerr << "Error: Invalid piece index for erase." << std::endl;
         }
     } else if (lastAction.type == DELETE) {
@@ -267,6 +276,34 @@ void PieceTable::Undo() {
 
     // Optionally, you may add debug information to verify undo operation
     std::cout << std::endl;
+}
+
+
+std::string PieceTable::getSequence() {
+    std::string text = "";
+    int lastLineNum = Pieces[0].lineNum;
+    for(auto piece:Pieces) {
+        if(piece.lineNum != lastLineNum) {
+            text += "/n";
+            if(piece.bufferType == "original") {
+            std::cout << piece.lineNum << " " << originalBuffer.substr(piece.startIndex, piece.Length);
+            text += originalBuffer.substr(piece.startIndex, piece.Length);
+            } else {
+                std::cout << piece.lineNum << " " << addBuffer.substr(piece.startIndex, piece.Length);
+                text += addBuffer.substr(piece.startIndex, piece.Length);
+            }
+        } else {
+            if(piece.bufferType == "original") {
+            std::cout << piece.lineNum << " " << originalBuffer.substr(piece.startIndex, piece.Length);
+            text += originalBuffer.substr(piece.startIndex, piece.Length);
+            } else {
+                std::cout << piece.lineNum << " " << addBuffer.substr(piece.startIndex, piece.Length);
+                    text += addBuffer.substr(piece.startIndex, piece.Length);
+            }
+        }
+        lastLineNum = piece.lineNum;
+    }
+    return text;
 }
 
 
@@ -286,6 +323,7 @@ std::map<int, std::string> PieceTable::getLines() {
 
 
 void PieceTable::combinePiece(int lastPieceIndex, int currentPieceIndex) {
+    std::cout << "Combining pieces" << std::endl;
     Piece lastPiece = Pieces[lastPieceIndex];
     Piece currentPiece = Pieces[currentPieceIndex];
 

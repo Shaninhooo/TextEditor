@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include "lib/PieceTable.h"
+#include "lib/FileManager.h"
 
 const int MAX_TEXT_LENGTH = 256;
 const int WIDTH = 800;
@@ -16,9 +17,12 @@ SDL_Renderer* renderer = nullptr;
 TTF_Font* font = nullptr;
 
 PieceTable piecetable;
+FileManager filemanager;
 
 std::map<int, std::string> textToRender = piecetable.getLines();
 
+bool enteringFileName = false;
+std::string fileNameBuffer = "a";
 int cursorX = textToRender[0].size();
 int cursorY = 0;
 int scrollOffset = 0;
@@ -102,26 +106,33 @@ void render() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    for (auto line:textToRender) {
-        int y = line.first * LINE_HEIGHT;
-        if (y >= 0 && y < HEIGHT) {
-            renderText(line.second, 0, y);
+     if (enteringFileName) {
+            renderText("Enter file name to save:", 0, 0);
+            renderText(fileNameBuffer, 0, 5 * LINE_HEIGHT);
+        } else {
+            for (auto line:textToRender) {
+                int y = line.first * LINE_HEIGHT;
+                if (y >= 0 && y < HEIGHT) {
+                    renderText(line.second, 0, y);
+                }
+            }
+
+            // Calculate cursor position in pixels
+            int cursorPosX = 0;
+            if (cursorX > 0) {
+                std::string substring = textToRender[cursorY].substr(0, cursorX);
+                SDL_Surface* surface = TTF_RenderText_Solid(font, substring.c_str(), {255, 255, 255, 255});
+                cursorPosX = surface->w;
+                SDL_FreeSurface(surface);
+            }
+            int cursorPosY = cursorY * LINE_HEIGHT;
+
+            if (showCursor) {
+                renderCursor(cursorPosX, cursorPosY);
+            }
         }
-    }
 
-    // Calculate cursor position in pixels
-    int cursorPosX = 0;
-    if (cursorX > 0) {
-        std::string substring = textToRender[cursorY].substr(0, cursorX);
-        SDL_Surface* surface = TTF_RenderText_Solid(font, substring.c_str(), {255, 255, 255, 255});
-        cursorPosX = surface->w;
-        SDL_FreeSurface(surface);
-    }
-    int cursorPosY = cursorY * LINE_HEIGHT;
-
-    if (showCursor) {
-        renderCursor(cursorPosX, cursorPosY);
-    }
+    
 
     SDL_RenderPresent(renderer);
 }
@@ -176,16 +187,29 @@ void handleEvent(SDL_Event& event) {
                 case SDLK_z:
                     if(SDL_GetModState() & KMOD_CTRL) {
                         if(!piecetable.getUndoStack().empty()) {
-                            piecetable.Undo();
-                            textToRender = piecetable.getLines();
                             if(piecetable.getUndoStack().top().type == INSERT) {
+                                piecetable.Undo();
                                 cursorX--;
                             }  else {
+                                piecetable.Undo();
                                 cursorX++;
                             }
+                            textToRender = piecetable.getLines();
                         }
                     }
                     break;
+                case SDLK_s:
+                    if(SDL_GetModState() & KMOD_CTRL) {
+                        enteringFileName = true;
+                        fileNameBuffer = " ";
+                    }
+                    break;
+                case SDLK_RETURN:
+                if (enteringFileName) {
+                    filemanager.saveTextToFile(fileNameBuffer, piecetable.getSequence());
+                    enteringFileName = false;
+                }
+                break;
                 default:
                     break;
             }
@@ -195,9 +219,13 @@ void handleEvent(SDL_Event& event) {
                 std::cerr << "deleteText call blocked due to rate limiting." << std::endl;
                 return;
             }
-            piecetable.appendText(event.text.text, cursorX, cursorY); // Append the new text
-            textToRender = piecetable.getLines();
-            cursorX++;
+            if (enteringFileName) {
+            fileNameBuffer += event.text.text;
+            } else {
+                piecetable.appendText(event.text.text, cursorX, cursorY); // Append the new text
+                textToRender = piecetable.getLines();
+                cursorX++;
+            }
             break;
         default:
             break;
