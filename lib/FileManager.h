@@ -1,14 +1,14 @@
 #ifndef FileManager_H
 #define FileManager_H
-#include <iostream>
 #include <fstream>
-#include <sstream>
-#include <string>
 #include <SDL.h>
+#include <filesystem>
+#include <cstdlib>
 
 class FileManager {
     public:
         void saveTextToFile(std::string filename, std::string text);
+        std::string getDownloadsFolder();
         bool openTextFromFile(std::string filename, std::string text);
 };
 

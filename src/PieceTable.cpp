@@ -215,6 +215,9 @@ void PieceTable::Undo() {
     Action lastAction = undoStack.top();
     undoStack.pop();
 
+
+    std::cout << lastAction.pieceIndex  << " " << Pieces.size() << std::endl;
+    std::cout << std::endl;
     if (lastAction.pieceIndex < 0 || lastAction.pieceIndex > Pieces.size()) {
         std::cerr << "Error: Invalid piece index in undo stack." << std::endl;
         return;
@@ -228,7 +231,7 @@ void PieceTable::Undo() {
         if (lastAction.pieceIndex <= Pieces.size()) {
             std::cout << lastAction.bufferStartIndex << " " << insertPiece.Length << std::endl;
 
-            if (lastAction.bufferStartIndex == 0) {
+            if (lastAction.bufferStartIndex == 0 || insertPiece.Length == 1) {
                 std::cout << "Remove start of Piece" << std::endl;
                 insertPiece.startIndex++;
                 insertPiece.Length--;
@@ -276,6 +279,10 @@ void PieceTable::Undo() {
 
     // Optionally, you may add debug information to verify undo operation
     std::cout << std::endl;
+}
+
+void PieceTable::Redo() {
+    
 }
 
 
@@ -337,6 +344,8 @@ void PieceTable::combinePiece(int lastPieceIndex, int currentPieceIndex) {
 
     Piece combinedPiece(lastPiece.bufferType, lastPiece.startIndex, lastPiece.Length + currentPiece.Length, lastPiece.lineNum);
     Pieces.insert(Pieces.begin() + lastPieceIndex, combinedPiece);
+
+    undoStack.top().pieceIndex = lastPieceIndex;
 }
 
 std::stack<Action> PieceTable::getUndoStack() {
